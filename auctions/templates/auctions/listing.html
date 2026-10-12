@@ -1,0 +1,159 @@
+{% extends "auctions/layout.html" %}
+
+{% block body %}
+    <h2>{{ listing.title }}</h2>
+    {% if listing.image_url %}
+        <img src="{{ listing.image_url }}" alt="{{ listing.title }}" width="400">
+    {% endif %}
+    <p>
+        <Strong>Description:</Strong> {{ listing.description }}
+    </p>
+    <p>
+        <Strong>Category:</Strong> 
+        {% if listing.category %}
+            <a href="{% url 'category_detail' listing.category.id %}">{{ listing.category.name }}</a>
+        {% else %}
+            No category
+        {% endif %}
+        </p>
+        <p>
+            <Strong>Seller:</Strong> {{ listing.owner.username }}
+        </p>
+        <p>
+            <Strong>Listed on:</Strong> {{ listing.created_at|date:"F j, Y, g:i A" }}
+        </p>
+        <p>
+            <Strong>Starting Price:</Strong> {{ listing.starting_bid}}
+        </p>
+        <p>
+            <Strong>Current Price:</Strong> {{ current_bid }}
+        </p>
+
+
+    <!-- 1. Bid history: listing owner only -->
+    {% if user.is_authenticated and user == listing.owner %}
+        <section class="bid-history">
+            <h3>Bids History</h3>
+
+            {% if bids %}
+                <ul>
+                    {% for bid in bids %}
+                        <li>
+                            {{ bid.amount }} - {{ bid.bidder.username }}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p>No bids have been placed yet.</p>
+            {% endif %}
+        </section>
+    {% endif %}
+
+
+    <!-- 2. Controls available only while the listing is active -->
+    {% if listing.is_active %}
+
+        {% if user.is_authenticated %}
+
+            {% if user != listing.owner %}
+                <section class="bid-controls">
+                    <a href="{% url 'toggle_watchlist' listing.id %}">
+                        Update Watchlist
+                    </a>
+
+                    <h3>Place a Bid</h3>
+
+                    <form action="{% url 'place_bid' listing.id %}" method="post">
+                    {% csrf_token %}
+                        <label for="amount">Your bid:</label>
+                        <input type="number"
+                           id="amount"
+                           name="amount"
+                           step="0.01"
+                           min="0"
+                           required>
+                        <button type="submit">Place Bid</button>
+                    </form>
+                </section>
+            {% else %}
+                <section class="listing-management">
+                    <h3>Manage Your Listing</h3>
+
+                    <form action="{% url 'close_listing' listing.id %}"
+                        method="post">
+                        {% csrf_token %}
+                        <button type="submit">Close Listing</button>
+                    </form>
+                </section>
+            {% endif %}
+
+        {% else %}
+            <p>
+                <a href="{% url 'login' %}">Log in</a>
+                to bid, close or update your watchlist.
+            </p>
+        {% endif %}
+
+    {% else %}
+        <h3>Listing is closed.</h3>
+
+        {% if highest_bid %}
+            <p>Winner: {{ highest_bid.bidder.username }}</p>
+            <p>Final Price: {{ highest_bid.amount }}</p>
+
+            {% if user.is_authenticated and user == highest_bid.bidder %}
+                <h4>Congratulations! You won this auction!</h4>
+            {% endif %}
+        {% else %}
+            <p>No bids were placed on this listing.</p>
+        {% endif %}
+    {% endif %}
+
+
+
+    <!-- 3. Comments: visible whether the listing is open or closed -->
+    <section class="comments">
+        <h3>Comments</h3>
+
+        {% if comments %}
+            <ul>
+                {% for comment in comments %}
+                    <li class="comment">
+                        <strong>{{ comment.author.username }}</strong>
+                        <small>
+                            {{ comment.created_at|date:"F j, Y, g:i A" }}
+                        </small>
+
+                        <p>{{ comment.content }}</p>
+
+                        <!-- Owner's reply form will go here -->
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No comments yet.</p>
+        {% endif %}
+    </section>
+
+
+    <!-- 4. General comment form: active listings only -->
+    {% if listing.is_active %}
+        {% if user.is_authenticated %}
+            <section class="add-comment">
+                <h3>Add a Comment</h3>
+
+                <form action="{% url 'add_comment' listing.id %}"
+                    method="post">
+                    {% csrf_token %}
+                    <textarea name="content" required></textarea>
+                    <button type="submit">Add Comment</button>
+                </form>
+            </section>
+        {% else %}
+            <p>
+                <a href="{% url 'login' %}">Log in</a>
+                to add a comment.
+            </p>
+        {% endif %}
+    {% endif %}
+{% endblock %}
